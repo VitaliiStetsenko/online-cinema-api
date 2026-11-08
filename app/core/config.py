@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str
+    database_sync_url: str
 
     # JWT
     secret_key: str
@@ -51,4 +52,4 @@ class Settings(BaseSettings):
     debug: bool = False
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

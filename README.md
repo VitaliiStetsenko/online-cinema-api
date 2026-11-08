@@ -67,7 +67,7 @@ Backend API for an online cinema built with FastAPI. The project implements user
 - Redis, Celery, Celery Beat, and Flower.
 - MinIO for S3-compatible avatar storage.
 - Docker, Docker Compose, and Poetry.
-- Pytest, pytest-asyncio, pytest-cov, Black, Flake8, MyPy, and GitHub Actions.
+- Pytest, pytest-asyncio, pytest-cov, Black, Flake8, strict MyPy, and GitHub Actions.
 ## API Documentation
  
 Swagger UI and the OpenAPI schema are available without authorization. Protected methods in Swagger require an access token via the **Authorize** button.
@@ -100,6 +100,7 @@ Main settings:
  
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@db:5432/online_cinema
+DATABASE_SYNC_URL=postgresql+psycopg://user:password@db:5432/online_cinema
 SECRET_KEY=replace-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
@@ -165,6 +166,7 @@ For the local `.env`, replace the Docker service names:
  
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/online_cinema
+DATABASE_SYNC_URL=postgresql+psycopg://user:password@localhost:5432/online_cinema
 REDIS_URL=redis://localhost:6379/0
 CELERY_BROKER_URL=redis://localhost:6379/1
 CELERY_RESULT_BACKEND=redis://localhost:6379/2
@@ -708,7 +710,7 @@ poetry run mypy app --ignore-missing-imports
 
 ## CI
 
-GitHub Actions запускается для `push` и pull request в ветки `develop` и `main`. Pipeline устанавливает зависимости через Poetry, выполняет Black, Flake8, MyPy, Pytest с coverage и публикует `coverage.xml` в Codecov. Конфигурация: `.github/workflows/ci.yml`.
+GitHub Actions runs for pushes and pull requests targeting `develop`, `main`, and `fix`. The quality job installs dependencies through Poetry, runs Black, Flake8, strict MyPy, Pytest with coverage, and uploads `coverage.xml` to Codecov. A separate PostgreSQL job starts PostgreSQL 15 and applies the complete Alembic migration chain. Configuration: `.github/workflows/ci.yml`.
 
 ## Важные замечания
 

@@ -171,7 +171,10 @@ async def create_movie(db: AsyncSession, data: MovieCreate) -> Movie:
     except IntegrityError as error:
         await db.rollback()
         raise ValueError("Movie with this name, year, and duration already exists") from error
-    return await get_movie(db, movie.id)
+    result = await get_movie(db, movie.id)
+    if not result:
+        raise RuntimeError("Movie was not created")
+    return result
 
 
 async def update_movie(db: AsyncSession, movie: Movie, data: MovieUpdate) -> Movie:
@@ -199,7 +202,10 @@ async def update_movie(db: AsyncSession, movie: Movie, data: MovieUpdate) -> Mov
     except IntegrityError as error:
         await db.rollback()
         raise ValueError("Movie with this name, year, and duration already exists") from error
-    return await get_movie(db, movie.id)
+    result = await get_movie(db, movie.id)
+    if not result:
+        raise RuntimeError("Movie was not found after update")
+    return result
 
 
 async def delete_movie(db: AsyncSession, movie: Movie) -> None:

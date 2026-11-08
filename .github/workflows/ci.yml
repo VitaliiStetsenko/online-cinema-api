@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ develop, main, fix ]
   pull_request:
-    branches: [ develop, main ]
+    branches: [ develop, main, fix ]
 
 jobs:
   quality-checks:
@@ -48,3 +48,50 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
+
+  postgres-migration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: online_cinema
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d online_cinema"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/online_cinema
+      DATABASE_SYNC_URL: postgresql+psycopg://user:password@localhost:5432/online_cinema
+      SECRET_KEY: ci-secret-key
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_USER: ci
+      SMTP_PASSWORD: ci
+      EMAIL_FROM: ci@example.com
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      MINIO_ENDPOINT: localhost:9000
+      MINIO_ACCESS_KEY: ci
+      MINIO_SECRET_KEY: ci
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    - name: Install dependencies
+      run: poetry install
+    - name: Apply PostgreSQL migrations
+      run: poetry run alembic upgrade head
+    - name: Verify PostgreSQL schema
+      run: poetry run alembic current

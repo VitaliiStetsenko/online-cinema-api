@@ -67,17 +67,6 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
-# Models currently use SQLAlchemy's legacy Column(...) declarations. Migrate to
-# SQLAlchemy 2.0 Mapped[...] annotations before enabling these checks.
-disable_error_code = [
-    "arg-type",
-    "assignment",
-    "call-arg",
-    "no-any-return",
-    "return-value",
-    "union-attr",
-    "var-annotated"
-]
 
 [tool.coverage.run]
 source = ["app"]

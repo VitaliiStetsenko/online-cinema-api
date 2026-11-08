@@ -81,7 +81,8 @@ async def upload_my_avatar(
         image.verify()
     except (UnidentifiedImageError, OSError):
         raise HTTPException(status_code=400, detail="Avatar must be a valid JPEG, PNG, or WEBP image")
-    content_type = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}.get(image.format)
+    image_format = image.format
+    content_type = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}.get(image_format or "")
     if not content_type:
         raise HTTPException(status_code=400, detail="Avatar must be JPEG, PNG, or WEBP")
 

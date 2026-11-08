@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 from app.core.config import settings
 from app.db.session import Base
+
 # Import models so Alembic can discover every table in Base.metadata.
 from app.models import cart, interaction, movie, user  # noqa: F401
 
@@ -13,8 +14,8 @@ from app.models import cart, interaction, movie, user  # noqa: F401
 # access to the values within the .ini file in use.
 config = context.config
 
-# Alembic uses a synchronous PostgreSQL URL while the application uses asyncpg.
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", "+psycopg"))
+# Alembic uses the explicitly configured synchronous database URL.
+config.set_main_option("sqlalchemy.url", settings.database_sync_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

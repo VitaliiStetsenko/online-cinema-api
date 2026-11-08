@@ -46,16 +46,21 @@ async def create_comment(
     """Create a comment for a movie."""
     if not await db.get(Movie, movie_id):
         raise ValueError("Movie not found")
+    parent_user_id: int | None = None
     if parent_comment_id is not None:
         parent = await get_comment(db, parent_comment_id)
         if not parent or parent.movie_id != movie_id:
             raise ValueError("Parent comment not found")
+        parent_user_id = parent.user_id
     comment = Comment(user_id=user_id, movie_id=movie_id, text=text, parent_comment_id=parent_comment_id)
     db.add(comment)
-    if parent_comment_id is not None and parent.user_id != user_id:
-        db.add(Notification(user_id=parent.user_id, message="Someone replied to your comment"))
+    if parent_comment_id is not None and parent_user_id != user_id:
+        db.add(Notification(user_id=parent_user_id, message="Someone replied to your comment"))
     await db.commit()
-    return await get_comment(db, comment.id)
+    result = await get_comment(db, comment.id)
+    if not result:
+        raise RuntimeError("Comment was not created")
+    return result
 
 
 async def get_comment(db: AsyncSession, comment_id: int) -> Comment | None:
@@ -83,7 +88,10 @@ async def update_comment(db: AsyncSession, comment: Comment, text: str) -> Comme
     """Update a user's comment text."""
     comment.text = text
     await db.commit()
-    return await get_comment(db, comment.id)
+    result = await get_comment(db, comment.id)
+    if not result:
+        raise RuntimeError("Comment was not found after update")
+    return result
 
 
 async def delete_comment(db: AsyncSession, comment: Comment) -> None:
@@ -109,7 +117,10 @@ async def set_comment_reaction(db: AsyncSession, user_id: int, comment_id: int, 
         action = "liked" if is_like else "disliked"
         db.add(Notification(user_id=comment.user_id, message=f"Someone {action} your comment"))
     await db.commit()
-    return await get_comment(db, comment_id)
+    result = await get_comment(db, comment_id)
+    if not result:
+        raise RuntimeError("Comment was not found after reaction update")
+    return result
 
 
 async def set_movie_reaction(db: AsyncSession, user_id: int, movie_id: int, is_like: bool) -> dict:

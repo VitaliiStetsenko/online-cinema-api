@@ -81,6 +81,8 @@ async def activate_user(db: AsyncSession, token: str) -> bool:
 
     # Activate user
     user = await get_user_by_id(db, activation_token.user_id)
+    if not user:
+        return False
     user.is_active = True
 
     # Delete token
@@ -159,7 +161,10 @@ async def refresh_access_token(db: AsyncSession, refresh_token_str: str) -> Opti
         return None
 
     # Create new access token
-    user = await get_user_by_id(db, int(payload.get("sub")))
+    subject = payload.get("sub")
+    if not isinstance(subject, str):
+        return None
+    user = await get_user_by_id(db, int(subject))
     if not user or not user.is_active:
         return None
 
@@ -226,6 +231,8 @@ async def reset_password(db: AsyncSession, token: str, new_password: str) -> boo
 
     # Reset password
     user = await get_user_by_id(db, reset_token.user_id)
+    if not user:
+        return False
     user.hashed_password = get_password_hash(new_password)
     user.updated_at = datetime.now(UTC)
 
