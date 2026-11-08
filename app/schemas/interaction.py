@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RatingCreate(BaseModel):
@@ -19,8 +19,7 @@ class RatingResponse(BaseModel):
     score: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieRatingSummary(BaseModel):

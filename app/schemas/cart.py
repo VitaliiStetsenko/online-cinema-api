@@ -3,7 +3,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas.movie import MovieResponse
 
@@ -15,8 +15,7 @@ class CartItemResponse(BaseModel):
     added_at: datetime
     movie: MovieResponse
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CartResponse(BaseModel):
@@ -26,5 +25,4 @@ class CartResponse(BaseModel):
     items: list[CartItemResponse]
     total_price: Decimal
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

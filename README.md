@@ -22,6 +22,7 @@ Backend API for an online cinema built with FastAPI. The project implements user
 - Re-sending the activation token for an inactive user.
 - Login with email and password, issuing a JWT pair: access and refresh.
 - The access token is short-lived; the refresh token is stored in the database and is used only to renew the access token.
+- Refresh tokens are rotated on every successful refresh and are rejected for inactive accounts.
 - Logout revokes the refresh token, so it cannot be used again.
 - Password change with verification of the old password, and password reset via a one-time token.
 - Three roles: `user`, `moderator`, `admin`.
@@ -31,6 +32,7 @@ Backend API for an online cinema built with FastAPI. The project implements user
 - Create, view, and update your own profile.
 - Profile fields: first name, last name, gender, date of birth, bio, and avatar URL.
 - Upload JPEG, PNG, and WEBP avatars up to 5 MB to MinIO.
+- Uploaded image bytes are validated and MinIO object keys do not use the client filename.
 ### Movie Catalog
  
 - Public movie list and detailed movie information.
@@ -56,6 +58,7 @@ Backend API for an online cinema built with FastAPI. The project implements user
 - Celery tasks for activation and password reset emails.
 - Celery Beat cleans up expired activation, password-reset, and refresh tokens.
 - Redis is used as the Celery broker; Flower provides task monitoring.
+- Auth endpoints are rate-limited and browser access is controlled through configurable CORS origins.
 ## Technologies
  
 - Python 3.11+, FastAPI, and Pydantic Settings.
@@ -100,6 +103,9 @@ DATABASE_URL=postgresql+asyncpg://user:password@db:5432/online_cinema
 SECRET_KEY=replace-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
+AUTH_RATE_LIMIT=5/minute
  
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -130,11 +136,8 @@ docker compose exec app alembic upgrade head
 | Service | Address |
 | --- | --- |
 | API and Swagger | `http://localhost:8001/docs` |
-| Flower | `http://localhost:5555` |
 | MinIO API | `http://localhost:9010` |
 | MinIO Console | `http://localhost:9011` |
-| PostgreSQL | `localhost:5432` |
-| Redis | `localhost:6379` |
  
 Stop the services:
  
@@ -701,7 +704,7 @@ poetry run flake8 app tests --max-line-length=120 --exclude=__pycache__
 poetry run mypy app --ignore-missing-imports
 ```
 
-Последняя локальная проверка: **22 passed**, общее line coverage **87%**.
+Последняя локальная проверка: **24 passed**.
 
 ## CI
 
@@ -710,9 +713,10 @@ GitHub Actions запускается для `push` и pull request в ветк�
 ## Важные замечания
 
 - Перед реальным использованием смените значения `SECRET_KEY`, SMTP-пароль и MinIO credentials из `.env.example`.
-- Docker Compose настроен для разработки: исходный код монтируется в контейнер, а Uvicorn работает с `--reload`.
+- В Docker-образ устанавливаются только runtime-зависимости; dev-зависимости используются в локальной среде и CI.
 - После первого Docker-запуска примените миграции командой `docker compose exec app alembic upgrade head`.
-- Письма отправляются Celery worker через SMTP. Активацию и сброс пароля завершайте вызовами API из Swagger или клиентского приложения, передавая токен в `POST /api/auth/activate/{token}` или `POST /api/auth/reset-password`.
+- Письма ведут на настраиваемый frontend (`FRONTEND_URL`): `/activate?token=...` и `/reset-password?token=...`. Frontend должен завершить flow вызовом `POST /api/auth/activate/{token}` или `POST /api/auth/reset-password`.
+- PostgreSQL, Redis и Flower не опубликованы наружу в Docker Compose. Для локальной отладки публикуйте нужные порты отдельным override-файлом.
 - Swagger и OpenAPI публичны; доступ к пользовательским, модераторским и административным действиям ограничивается JWT и ролями.
 
 ## Автор

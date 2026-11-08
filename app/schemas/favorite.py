@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas.movie import MovieResponse
 
@@ -14,8 +14,7 @@ class FavoriteResponse(BaseModel):
     added_at: datetime
     movie: MovieResponse
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FavoriteListResponse(BaseModel):

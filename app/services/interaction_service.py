@@ -100,11 +100,12 @@ async def set_comment_reaction(db: AsyncSession, user_id: int, comment_id: int, 
     reaction = await db.scalar(
         select(CommentLike).where(CommentLike.user_id == user_id, CommentLike.comment_id == comment_id)
     )
+    reaction_changed = not reaction or reaction.is_like != is_like
     if reaction:
         reaction.is_like = is_like
     else:
         db.add(CommentLike(user_id=user_id, comment_id=comment_id, is_like=is_like))
-    if comment.user_id != user_id:
+    if reaction_changed and comment.user_id != user_id:
         action = "liked" if is_like else "disliked"
         db.add(Notification(user_id=comment.user_id, message=f"Someone {action} your comment"))
     await db.commit()

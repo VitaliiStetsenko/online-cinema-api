@@ -2,7 +2,7 @@
 
 from datetime import datetime, date
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.user import GenderEnum, UserGroupEnum
 
 
@@ -38,8 +38,7 @@ class UserProfileResponse(BaseModel):
     date_of_birth: Optional[date]
     info: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserFullResponse(BaseModel):
@@ -52,8 +51,7 @@ class UserFullResponse(BaseModel):
     group_name: str
     profile: Optional[UserProfileResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserAdminUpdate(BaseModel):

@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NamedEntityCreate(BaseModel):
@@ -25,8 +25,7 @@ class NamedEntityResponse(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieCreate(BaseModel):
@@ -84,8 +83,7 @@ class MovieResponse(BaseModel):
     directors: list[NamedEntityResponse]
     stars: list[NamedEntityResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieListResponse(BaseModel):
