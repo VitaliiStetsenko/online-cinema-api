@@ -1,4 +1,361 @@
 # Online Cinema API
+ 
+Backend API for an online cinema built with FastAPI. The project implements user accounts and roles, a movie catalog, profiles with avatars, favorites, ratings, comments, reactions, notifications, and a shopping cart.
+ 
+## Table of Contents
+ 
+- [Features](#features)
+- [Technologies](#technologies)
+- [API Documentation](#api-documentation)
+- [Quick Start with Docker](#quick-start-with-docker)
+- [Local Setup](#local-setup)
+- [Authorization](#authorization)
+- [API](#api)
+- [Tests and Quality](#tests-and-quality)
+- [CI](#ci)
+## Features
+ 
+### Accounts and Access
+ 
+- Registration with a unique email and password strength validation.
+- Account activation with a one-time token valid for 24 hours.
+- Re-sending the activation token for an inactive user.
+- Login with email and password, issuing a JWT pair: access and refresh.
+- The access token is short-lived; the refresh token is stored in the database and is used only to renew the access token.
+- Logout revokes the refresh token, so it cannot be used again.
+- Password change with verification of the old password, and password reset via a one-time token.
+- Three roles: `user`, `moderator`, `admin`.
+- An administrator can view users, change their role, and manually activate an account.
+### Profile and Avatar
+ 
+- Create, view, and update your own profile.
+- Profile fields: first name, last name, gender, date of birth, bio, and avatar URL.
+- Upload JPEG, PNG, and WEBP avatars up to 5 MB to MinIO.
+### Movie Catalog
+ 
+- Public movie list and detailed movie information.
+- Search by title, description, actors, and directors.
+- Filters by genre, release year range, and IMDb rating.
+- Sorting by title, year, IMDb, price, or number of votes.
+- List pagination.
+- CRUD for movies, genres, directors, actors, and age certifications for moderator/admin.
+- Protection against deleting a movie that is in someone's cart.
+- Genre list with the number of related movies.
+### Movie Interaction
+ 
+- Favorites with search, filtering, sorting, and pagination.
+- Movie ratings from 1 to 10, with the ability to change your own rating.
+- Average rating, number of ratings, and the current user's rating.
+- Comments, editing and deleting your own comments, and replies to comments.
+- Likes and dislikes for comments and movies.
+- Internal notifications about replies and reactions to comments.
+### Cart and Background Tasks
+ 
+- One cart per user; adding the same movie twice is not allowed.
+- View the cart contents and total price, remove an item, and clear the cart completely.
+- Celery tasks for activation and password reset emails.
+- Celery Beat cleans up expired activation, password-reset, and refresh tokens.
+- Redis is used as the Celery broker; Flower provides task monitoring.
+## Technologies
+ 
+- Python 3.11+, FastAPI, and Pydantic Settings.
+- PostgreSQL, SQLAlchemy Async, and Alembic.
+- JWT via Python-JOSE, password hashing via bcrypt.
+- Redis, Celery, Celery Beat, and Flower.
+- MinIO for S3-compatible avatar storage.
+- Docker, Docker Compose, and Poetry.
+- Pytest, pytest-asyncio, pytest-cov, Black, Flake8, MyPy, and GitHub Actions.
+## API Documentation
+ 
+Swagger UI and the OpenAPI schema are available without authorization. Protected methods in Swagger require an access token via the **Authorize** button.
+ 
+| Run mode | Swagger UI | OpenAPI JSON |
+| --- | --- | --- |
+| Docker Compose | `http://localhost:8001/docs` | `http://localhost:8001/openapi.json` |
+| Local Uvicorn | `http://localhost:8000/docs` | `http://localhost:8000/openapi.json` |
+ 
+Swagger contains request and response schemas, required parameters, and response codes for all endpoints. The sections below serve as a brief API map and a description of custom actions.
+ 
+## Quick Start with Docker
+ 
+### Requirements
+ 
+- Docker Desktop with Docker Compose.
+- Git.
+### 1. Clone and Configure
+ 
+```powershell
+git clone https://github.com/VitaliiStetsenko/Online-Cinema-Portfolio-Project-.git
+cd Online-Cinema-Portfolio-Project-
+git checkout develop
+Copy-Item .env.example .env
+```
+ 
+Be sure to replace `SECRET_KEY` in `.env`. To send real emails, provide working SMTP credentials.
+ 
+Main settings:
+ 
+```env
+DATABASE_URL=postgresql+asyncpg://user:password@db:5432/online_cinema
+SECRET_KEY=replace-with-a-long-random-secret
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+ 
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+EMAIL_FROM=your-email@gmail.com
+ 
+REDIS_URL=redis://redis:6379/0
+CELERY_BROKER_URL=redis://redis:6379/1
+CELERY_RESULT_BACKEND=redis://redis:6379/2
+ 
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=avatars
+MINIO_SECURE=false
+```
+ 
+### 2. Start and Migrate
+ 
+```powershell
+docker compose up --build -d
+docker compose exec app alembic upgrade head
+```
+ 
+### Services
+ 
+| Service | Address |
+| --- | --- |
+| API and Swagger | `http://localhost:8001/docs` |
+| Flower | `http://localhost:5555` |
+| MinIO API | `http://localhost:9010` |
+| MinIO Console | `http://localhost:9011` |
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
+ 
+Stop the services:
+ 
+```powershell
+docker compose down
+```
+ 
+Also remove the PostgreSQL and MinIO volumes:
+ 
+```powershell
+docker compose down -v
+```
+ 
+## Local Setup
+ 
+This mode runs FastAPI on your machine while keeping PostgreSQL, Redis, and MinIO in Docker.
+ 
+```powershell
+poetry install
+docker compose up -d db redis minio
+Copy-Item .env.example .env
+```
+ 
+For the local `.env`, replace the Docker service names:
+ 
+```env
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/online_cinema
+REDIS_URL=redis://localhost:6379/0
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/2
+MINIO_ENDPOINT=localhost:9010
+```
+ 
+Apply the migrations and start the API:
+ 
+```powershell
+poetry run alembic upgrade head
+poetry run uvicorn app.main:app --reload
+```
+ 
+Local Swagger: `http://localhost:8000/docs`.
+ 
+If needed, start Celery separately:
+ 
+```powershell
+poetry run celery -A app.tasks.celery_app worker --loglevel=info
+poetry run celery -A app.tasks.celery_app beat --loglevel=info
+poetry run celery -A app.tasks.celery_app flower --port=5555
+```
+ 
+## Authorization
+ 
+Most user actions require the header:
+ 
+```http
+Authorization: Bearer <ACCESS_TOKEN>
+```
+ 
+Get tokens via `POST /api/auth/login`. In Swagger, click **Authorize**, paste only the access token value, and confirm. The refresh token is intended exclusively for `POST /api/auth/refresh` and does not grant access to protected endpoints.
+ 
+The password must be 8 to 100 characters long and contain a lowercase letter, an uppercase letter, a digit, and a special character.
+ 
+## API
+ 
+All listed paths start with `/api` unless stated otherwise. Full JSON schemas are available in Swagger.
+ 
+### Service Routes
+ 
+| Method | Path | Access | Action |
+| --- | --- | --- | --- |
+| GET | `/` | public | Health check: returns the API status. |
+| GET | `/docs` | public | Swagger UI. |
+| GET | `/openapi.json` | public | OpenAPI schema. |
+ 
+### Authentication: `/auth`
+ 
+| Method | Path | Parameters/Body | Action |
+| --- | --- | --- | --- |
+| POST | `/register` | `email`, `password` | Creates an inactive user and queues sending of the activation token. |
+| POST | `/activate/{token}` | path `token` | Activates the account using a valid token. |
+| POST | `/resend-activation` | `email` | Issues a new activation token for an inactive user. |
+| POST | `/login` | `email`, `password` | Returns `access_token`, `refresh_token`, `token_type`. |
+| POST | `/refresh` | `refresh_token` | Creates a new access token. |
+| POST | `/logout` | `refresh_token` | Deletes the refresh token from the database. |
+| POST | `/change-password` | `old_password`, `new_password` | Changes the current user's password. Requires an access token. |
+| POST | `/request-password-reset` | `email` | Creates and sends a reset token for an active user. |
+| POST | `/reset-password` | `token`, `new_password` | Sets a new password using a valid reset token. |
+ 
+Registration example for Docker:
+ 
+```powershell
+curl.exe -X POST "http://localhost:8001/api/auth/register" `
+  -H "Content-Type: application/json" `
+  -d "{\"email\": \"user@example.com\", \"password\": \"SecurePass123!\"}"
+```
+ 
+### Users: `/users`
+ 
+| Method | Path | Access | Action |
+| --- | --- | --- | --- |
+| GET | `/me` | active user | Returns the current user's account and profile. |
+| POST | `/me/profile` | active user | Creates a profile. Body: `first_name`, `last_name`, `gender`, `date_of_birth`, `info`. |
+| PUT | `/me/profile` | active user | Updates the profile; creates it automatically if it does not exist. |
+| POST | `/me/avatar` | active user | Uploads the multipart field `avatar` as JPEG, PNG, or WEBP up to 5 MB. |
+| GET | `` | admin | Returns a list of user accounts. |
+| PATCH | `/{user_id}` | admin | Changes `group` (`user`, `moderator`, `admin`) and/or `is_active`. |
+ 
+### Movies: `/movies`
+ 
+| Method | Path | Access | Action |
+| --- | --- | --- | --- |
+| GET | `` | public | Returns the paginated catalog. |
+| GET | `/{movie_id}` | public | Returns the detailed movie card. |
+| POST | `` | moderator/admin | Creates a movie. |
+| PUT | `/{movie_id}` | moderator/admin | Updates the movie fields and its relations. |
+| DELETE | `/{movie_id}` | moderator/admin | Deletes the movie if it is not in any cart. |
+ 
+`GET /movies` parameters:
+ 
+| Parameter | Value | Purpose |
+| --- | --- | --- |
+| `page`, `page_size` | `1`, `1..100` | Page and number of results. |
+| `query` | string | Search by title, description, actor, and director. |
+| `genre_id` | integer | Genre filter. |
+| `year_from`, `year_to` | `1888..2100` | Release year range. |
+| `imdb_from`, `imdb_to` | `0..10` | IMDb range. |
+| `sort_by` | `name`, `year`, `imdb`, `price`, `votes` | Sort field. |
+| `sort_order` | `asc`, `desc` | Sort direction. |
+ 
+The movie creation body contains `name`, `year`, `time`, `imdb`, `votes`, `description`, `price`, `certification_id`, and the optional arrays `genre_ids`, `director_ids`, `star_ids`. `meta_score` and `gross` are also available.
+ 
+### Catalog Reference Data: `/catalog`
+ 
+| Resource | Public | Moderator/admin |
+| --- | --- | --- |
+| `/genres` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
+| `/directors` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
+| `/stars` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
+| `/certifications` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
+| `/genres/with-counts` | `GET` | - |
+ 
+Creation uses the body `{ "name": "..." }`. Update accepts the same body. The `GET /genres/with-counts` endpoint returns `id`, `name`, and `movie_count` for each genre.
+ 
+### Favorites: `/favorites`
+ 
+| Method | Path | Action |
+| --- | --- | --- |
+| GET | `` | Returns the current user's paginated list of favorite movies. |
+| POST | `/{movie_id}` | Adds a movie to favorites. Adding it again is rejected. |
+| DELETE | `/{movie_id}` | Removes a movie from favorites. |
+ 
+`GET /favorites` supports the catalog parameters: `page`, `page_size`, `query`, `genre_id`, `year_from`, `year_to`, `imdb_from`, `imdb_to`, `sort_by`, `sort_order`. `added_at` is also available for `sort_by`.
+ 
+### Ratings, Comments, and Notifications
+ 
+| Method | Path | Action |
+| --- | --- | --- |
+| PUT | `/movies/{movie_id}/rating` | Creates or updates your own rating. Body: `{ "score": 1..10 }`. |
+| GET | `/movies/{movie_id}/rating` | Returns the average score, number of ratings, and the current user's rating. |
+| POST | `/movies/{movie_id}/comments` | Creates a comment. Body: `text`, optional `parent_comment_id`. |
+| GET | `/movies/{movie_id}/comments` | Returns the movie's comments with reaction counts. |
+| PUT | `/comments/{comment_id}` | Edits your own comment. Body: `text`. |
+| DELETE | `/comments/{comment_id}` | Deletes your own comment. |
+| PUT | `/comments/{comment_id}/reaction?is_like=true` | Sets or changes a like/dislike on a comment. |
+| PUT | `/movies/{movie_id}/reaction?is_like=true` | Sets or changes a like/dislike on a movie. |
+| GET | `/notifications` | Returns the current user's notifications. |
+| PATCH | `/notifications/{notification_id}/read` | Marks a notification as read. |
+ 
+All methods in this section require an active user.
+ 
+### Cart: `/cart`
+ 
+| Method | Path | Action |
+| --- | --- | --- |
+| GET | `` | Returns the current cart, its items, and `total_price`; creates an empty cart on the first call. |
+| POST | `/{movie_id}` | Adds a movie to the cart. Adding it again is rejected. |
+| DELETE | `/{movie_id}` | Removes the specified item. |
+| DELETE | `` | Clears the cart. |
+ 
+All cart methods require an active user.
+ 
+## Tests and Quality
+ 
+The tests use a separate in-memory SQLite database. Docker, PostgreSQL, Redis, SMTP, and MinIO are not needed to run them: external calls are isolated in the tests.
+ 
+```powershell
+# All tests
+poetry run pytest tests/
+ 
+# Code coverage
+poetry run pytest tests/ --cov=app --cov-report=term-missing
+ 
+# HTML coverage report
+poetry run pytest tests/ --cov=app --cov-report=html
+ 
+# Formatting, linter, and types
+poetry run black --check app tests
+poetry run flake8 app tests --max-line-length=120 --exclude=__pycache__
+poetry run mypy app --ignore-missing-imports
+```
+ 
+Latest local check: **22 passed**, overall line coverage **87%**.
+ 
+## CI
+ 
+GitHub Actions runs on `push` and pull requests to the `develop` and `main` branches. The pipeline installs dependencies via Poetry, runs Black, Flake8, MyPy, and Pytest with coverage, and uploads `coverage.xml` to Codecov. Configuration: `.github/workflows/ci.yml`.
+ 
+## Important Notes
+ 
+- Before real-world use, change the `SECRET_KEY`, SMTP password, and MinIO credentials from `.env.example`.
+- Docker Compose is configured for development: the source code is mounted into the container, and Uvicorn runs with `--reload`.
+- After the first Docker start, apply the migrations with `docker compose exec app alembic upgrade head`.
+- Emails are sent by the Celery worker via SMTP. Complete activation and password reset by calling the API from Swagger or a client application, passing the token to `POST /api/auth/activate/{token}` or `POST /api/auth/reset-password`.
+- Swagger and OpenAPI are public; access to user, moderator, and administrator actions is restricted by JWT and roles.
+## Author
+ 
+Vitalii Stetsenko
+ 
+---------------------------------------------------------------------------------------------------
+
+# Online Cinema API
 
 Backend API для онлайн-кинотеатра на FastAPI. Проект реализует учетные записи и роли, каталог фильмов, профиль с аватаром, избранное, оценки, комментарии, реакции, уведомления и корзину.
 
