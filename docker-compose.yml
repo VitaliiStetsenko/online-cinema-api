@@ -14,7 +14,7 @@ services:
     container_name: cinema_redis
 
   minio:
-    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: cinema_minio
     command: server /data --console-address ":9001"
     environment:
