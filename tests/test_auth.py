@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import ActivationToken, PasswordResetToken, User
+from app.tasks.email_tasks import send_activation_email, send_password_reset_email
 
 
 @pytest.mark.asyncio
@@ -116,3 +117,15 @@ async def test_resend_activation_and_invalid_reset(client: AsyncClient, db_sessi
     assert (
         await client.post("/api/auth/reset-password", json={"token": "bad", "new_password": "ResetPass123!"})
     ).status_code == 400
+
+
+def test_email_links_target_configured_frontend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Activation and reset emails point to frontend pages rather than POST-only API routes."""
+    sent_bodies: list[str] = []
+    monkeypatch.setattr("app.tasks.email_tasks._send_email", lambda _, __, body: sent_bodies.append(body))
+
+    send_activation_email.run("user@example.com", "activation-token")
+    send_password_reset_email.run("user@example.com", "reset-token")
+
+    assert "http://frontend.test/activate?token=activation-token" in sent_bodies[0]
+    assert "http://frontend.test/reset-password?token=reset-token" in sent_bodies[1]

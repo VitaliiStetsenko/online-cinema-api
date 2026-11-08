@@ -21,6 +21,9 @@ os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
 os.environ.setdefault("MINIO_ENDPOINT", "localhost:9000")
 os.environ.setdefault("MINIO_ACCESS_KEY", "test")
 os.environ.setdefault("MINIO_SECRET_KEY", "test")
+os.environ.setdefault("FRONTEND_URL", "http://frontend.test")
+os.environ.setdefault("CORS_ORIGINS", "http://frontend.test")
+os.environ.setdefault("AUTH_RATE_LIMIT", "1000/minute")
 
 # Environment must be configured before importing the application.
 from app.main import app  # noqa: E402

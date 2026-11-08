@@ -15,8 +15,8 @@ from app.models.cart import Cart, CartItem
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set sqlalchemy.url from settings
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", ""))
+# Alembic uses a synchronous PostgreSQL URL while the application uses asyncpg.
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", "+psycopg"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

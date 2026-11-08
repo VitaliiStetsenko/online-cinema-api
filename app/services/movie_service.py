@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import TypeVar
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -40,8 +41,12 @@ async def list_named_entities(db: AsyncSession, model: type[CatalogModel]) -> Se
 
 async def delete_named_entity(db: AsyncSession, entity: CatalogModel) -> None:
     """Delete a catalog entity."""
-    await db.delete(entity)
-    await db.commit()
+    try:
+        await db.delete(entity)
+        await db.commit()
+    except IntegrityError as error:
+        await db.rollback()
+        raise ValueError("Catalog entity cannot be deleted because it is used by movies") from error
 
 
 async def update_named_entity(db: AsyncSession, entity: CatalogModel, name: str) -> CatalogModel:
@@ -163,7 +168,7 @@ async def create_movie(db: AsyncSession, data: MovieCreate) -> Movie:
     db.add(movie)
     try:
         await db.commit()
-    except Exception as error:
+    except IntegrityError as error:
         await db.rollback()
         raise ValueError("Movie with this name, year, and duration already exists") from error
     return await get_movie(db, movie.id)
@@ -191,7 +196,7 @@ async def update_movie(db: AsyncSession, movie: Movie, data: MovieUpdate) -> Mov
 
     try:
         await db.commit()
-    except Exception as error:
+    except IntegrityError as error:
         await db.rollback()
         raise ValueError("Movie with this name, year, and duration already exists") from error
     return await get_movie(db, movie.id)

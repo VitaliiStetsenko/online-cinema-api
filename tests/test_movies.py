@@ -76,3 +76,12 @@ async def test_genres_include_movie_counts(client: AsyncClient, movie: Movie) ->
     response = await client.get("/api/catalog/genres/with-counts")
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_deleting_used_certification_returns_conflict(
+    client: AsyncClient, moderator_headers: dict[str, str], movie: Movie
+) -> None:
+    """Catalog entries referenced by movies cannot be deleted."""
+    response = await client.delete(f"/api/catalog/certifications/{movie.certification_id}", headers=moderator_headers)
+
+    assert response.status_code == 409

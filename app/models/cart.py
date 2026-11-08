@@ -1,6 +1,6 @@
 """Cart models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db.session import Base
@@ -27,7 +27,7 @@ class CartItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     cart_id = Column(Integer, ForeignKey("carts.id"), nullable=False)
     movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    added_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    added_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
     cart = relationship("Cart", back_populates="items")
     movie = relationship("Movie", backref="in_carts")

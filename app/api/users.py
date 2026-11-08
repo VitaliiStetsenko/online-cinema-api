@@ -1,6 +1,9 @@
 """User profile API endpoints."""
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from PIL import Image, UnidentifiedImageError
+from starlette.concurrency import run_in_threadpool
+from io import BytesIO
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.schemas.user import (
@@ -69,15 +72,22 @@ async def upload_my_avatar(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a JPEG, PNG, or WEBP avatar to MinIO."""
-    if avatar.content_type not in {"image/jpeg", "image/png", "image/webp"}:
-        raise HTTPException(status_code=400, detail="Avatar must be JPEG, PNG, or WEBP")
     content = await avatar.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Avatar must not exceed 5 MB")
 
+    try:
+        image = Image.open(BytesIO(content))
+        image.verify()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="Avatar must be a valid JPEG, PNG, or WEBP image")
+    content_type = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}.get(image.format)
+    if not content_type:
+        raise HTTPException(status_code=400, detail="Avatar must be JPEG, PNG, or WEBP")
+
     profile = await user_service.get_or_create_profile(db, current_user.id)
     try:
-        profile.avatar = upload_avatar(avatar.filename or "avatar", content, avatar.content_type)
+        profile.avatar = await run_in_threadpool(upload_avatar, content, content_type)
     except Exception as error:
         raise HTTPException(status_code=503, detail="Avatar storage is unavailable") from error
     await db.commit()

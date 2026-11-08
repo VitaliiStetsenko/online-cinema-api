@@ -1,7 +1,7 @@
 """Authentication service."""
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,13 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
     return result.scalar_one_or_none()
 
 
+def _is_expired(expires_at: datetime) -> bool:
+    """Compare expiry timestamps from databases that may omit UTC tzinfo."""
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    return expires_at < datetime.now(UTC)
+
+
 async def create_user(db: AsyncSession, email: str, password: str) -> User:
     """Create new user with activation token."""
     # Check if user exists
@@ -50,7 +57,7 @@ async def create_user(db: AsyncSession, email: str, password: str) -> User:
 
     # Create activation token
     token = secrets.token_urlsafe(32)
-    activation_token = ActivationToken(user_id=user.id, token=token, expires_at=datetime.utcnow() + timedelta(hours=24))
+    activation_token = ActivationToken(user_id=user.id, token=token, expires_at=datetime.now(UTC) + timedelta(hours=24))
     db.add(activation_token)
     await db.commit()
     await db.refresh(user)
@@ -69,7 +76,7 @@ async def activate_user(db: AsyncSession, token: str) -> bool:
     if not activation_token:
         return False
 
-    if activation_token.expires_at < datetime.utcnow():
+    if _is_expired(activation_token.expires_at):
         return False
 
     # Activate user
@@ -98,7 +105,7 @@ async def resend_activation(db: AsyncSession, email: str) -> bool:
 
     # Create new token
     token = secrets.token_urlsafe(32)
-    activation_token = ActivationToken(user_id=user.id, token=token, expires_at=datetime.utcnow() + timedelta(hours=24))
+    activation_token = ActivationToken(user_id=user.id, token=token, expires_at=datetime.now(UTC) + timedelta(hours=24))
     db.add(activation_token)
     await db.commit()
 
@@ -129,7 +136,7 @@ async def create_tokens(db: AsyncSession, user: User) -> dict:
     refresh_token = RefreshToken(
         user_id=user.id,
         token=refresh_token_str,
-        expires_at=datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days),
+        expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days),
     )
     db.add(refresh_token)
     await db.commit()
@@ -148,14 +155,16 @@ async def refresh_access_token(db: AsyncSession, refresh_token_str: str) -> Opti
     result = await db.execute(select(RefreshToken).where(RefreshToken.token == refresh_token_str))
     refresh_token = result.scalar_one_or_none()
 
-    if not refresh_token or refresh_token.expires_at < datetime.utcnow():
+    if not refresh_token or _is_expired(refresh_token.expires_at):
         return None
 
     # Create new access token
-    user_id = int(payload.get("sub"))
-    access_token = create_access_token({"sub": str(user_id)})
+    user = await get_user_by_id(db, int(payload.get("sub")))
+    if not user or not user.is_active:
+        return None
 
-    return {"access_token": access_token, "refresh_token": refresh_token_str, "token_type": "bearer"}
+    await db.delete(refresh_token)
+    return await create_tokens(db, user)
 
 
 async def logout_user(db: AsyncSession, refresh_token_str: str) -> bool:
@@ -176,7 +185,7 @@ async def change_password(db: AsyncSession, user: User, old_password: str, new_p
         return False
 
     user.hashed_password = get_password_hash(new_password)
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now(UTC)
     await db.commit()
 
     return True
@@ -197,7 +206,7 @@ async def request_password_reset(db: AsyncSession, email: str) -> bool:
 
     # Create new token
     token = secrets.token_urlsafe(32)
-    reset_token = PasswordResetToken(user_id=user.id, token=token, expires_at=datetime.utcnow() + timedelta(hours=1))
+    reset_token = PasswordResetToken(user_id=user.id, token=token, expires_at=datetime.now(UTC) + timedelta(hours=1))
     db.add(reset_token)
     await db.commit()
 
@@ -212,13 +221,13 @@ async def reset_password(db: AsyncSession, token: str, new_password: str) -> boo
     result = await db.execute(select(PasswordResetToken).where(PasswordResetToken.token == token))
     reset_token = result.scalar_one_or_none()
 
-    if not reset_token or reset_token.expires_at < datetime.utcnow():
+    if not reset_token or _is_expired(reset_token.expires_at):
         return False
 
     # Reset password
     user = await get_user_by_id(db, reset_token.user_id)
     user.hashed_password = get_password_hash(new_password)
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now(UTC)
 
     # Delete token
     await db.delete(reset_token)
