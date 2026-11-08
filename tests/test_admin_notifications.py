@@ -1,6 +1,9 @@
 """Tests for administration, reactions, notifications, and protected docs."""
 
+from io import BytesIO
+
 from httpx import AsyncClient
+from PIL import Image
 
 from app.models.movie import Movie
 from app.models.user import User
@@ -72,10 +75,12 @@ async def test_upload_avatar_validates_and_stores_file(
     )
     assert invalid.status_code == 400
 
+    image = BytesIO()
+    Image.new("RGB", (1, 1)).save(image, format="PNG")
     uploaded = await client.post(
         "/api/users/me/avatar",
         headers=auth_headers,
-        files={"avatar": ("avatar.png", b"png-data", "image/png")},
+        files={"avatar": ("avatar.png", image.getvalue(), "image/png")},
     )
     assert uploaded.status_code == 200
     assert uploaded.json()["avatar"] == "avatars/test-avatar.png"

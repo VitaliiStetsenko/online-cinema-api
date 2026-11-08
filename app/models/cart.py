@@ -1,9 +1,16 @@
 """Cart models."""
 
-from datetime import datetime
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, UniqueConstraint
-from sqlalchemy.orm import relationship
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.session import Base
+
+if TYPE_CHECKING:
+    from app.models.movie import Movie
+    from app.models.user import User
 
 
 class Cart(Base):
@@ -11,11 +18,10 @@ class Cart(Base):
 
     __tablename__ = "carts"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-
-    user = relationship("User", backref="cart")
-    items = relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    user: Mapped["User"] = relationship(backref="cart")
+    items: Mapped[list["CartItem"]] = relationship(back_populates="cart", cascade="all, delete-orphan")
 
 
 class CartItem(Base):
@@ -24,10 +30,9 @@ class CartItem(Base):
     __tablename__ = "cart_items"
     __table_args__ = (UniqueConstraint("cart_id", "movie_id", name="uq_cart_movie"),)
 
-    id = Column(Integer, primary_key=True, index=True)
-    cart_id = Column(Integer, ForeignKey("carts.id"), nullable=False)
-    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
-    added_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    cart = relationship("Cart", back_populates="items")
-    movie = relationship("Movie", backref="in_carts")
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cart_id: Mapped[int] = mapped_column(ForeignKey("carts.id"))
+    movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"))
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    cart: Mapped[Cart] = relationship(back_populates="items")
+    movie: Mapped["Movie"] = relationship(backref="in_carts")

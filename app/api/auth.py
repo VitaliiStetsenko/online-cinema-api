@@ -1,6 +1,6 @@
 """Authentication API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.schemas.auth import (
@@ -16,12 +16,15 @@ from app.schemas.auth import (
 from app.services import auth_service
 from app.api.dependencies import get_current_user
 from app.models.user import User
+from app.core.config import settings
+from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.auth_rate_limit)
+async def register(request: Request, data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register new user. Sends activation email."""
     try:
         user = await auth_service.create_user(db, data.email, data.password)
@@ -40,7 +43,8 @@ async def activate(token: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/resend-activation")
-async def resend_activation(data: ActivationResend, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.auth_rate_limit)
+async def resend_activation(request: Request, data: ActivationResend, db: AsyncSession = Depends(get_db)):
     """Resend activation email."""
     success = await auth_service.resend_activation(db, data.email)
     if not success:
@@ -49,7 +53,8 @@ async def resend_activation(data: ActivationResend, db: AsyncSession = Depends(g
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.auth_rate_limit)
+async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(get_db)):
     """Login user and return JWT tokens."""
     user = await auth_service.authenticate_user(db, data.email, data.password)
     if not user:
@@ -87,7 +92,8 @@ async def change_password(
 
 
 @router.post("/request-password-reset")
-async def request_password_reset(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.auth_rate_limit)
+async def request_password_reset(request: Request, data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
     """Request password reset. Sends email with reset token."""
     await auth_service.request_password_reset(db, data.email)
     return {"message": "If email exists, password reset link has been sent"}

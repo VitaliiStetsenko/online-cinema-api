@@ -11,7 +11,7 @@ from app.core.config import settings
 def send_activation_email(email: str, token: str):
     """Send activation email to user."""
     subject = "Activate your Online Cinema account"
-    activation_link = f"http://localhost:8000/api/auth/activate/{token}"
+    activation_link = f"{settings.frontend_url.rstrip('/')}/activate?token={token}"
 
     body = f"""
     Hello!
@@ -32,7 +32,7 @@ def send_activation_email(email: str, token: str):
 def send_password_reset_email(email: str, token: str):
     """Send password reset email to user."""
     subject = "Reset your Online Cinema password"
-    reset_link = f"http://localhost:8000/api/auth/reset-password/{token}"
+    reset_link = f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
 
     body = f"""
     Hello!

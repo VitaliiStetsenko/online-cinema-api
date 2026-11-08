@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("DATABASE_SYNC_URL", "sqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("SMTP_HOST", "localhost")
 os.environ.setdefault("SMTP_PORT", "1025")
@@ -21,6 +22,9 @@ os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
 os.environ.setdefault("MINIO_ENDPOINT", "localhost:9000")
 os.environ.setdefault("MINIO_ACCESS_KEY", "test")
 os.environ.setdefault("MINIO_SECRET_KEY", "test")
+os.environ.setdefault("FRONTEND_URL", "http://frontend.test")
+os.environ.setdefault("CORS_ORIGINS", "http://frontend.test")
+os.environ.setdefault("AUTH_RATE_LIMIT", "1000/minute")
 
 # Environment must be configured before importing the application.
 from app.main import app  # noqa: E402

@@ -3,7 +3,7 @@
 from datetime import datetime
 import re
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 def validate_password_complexity(password: str) -> str:
@@ -89,5 +89,4 @@ class UserResponse(BaseModel):
     created_at: datetime
     group_name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -23,7 +23,10 @@ async def add_favorite(db: AsyncSession, user_id: int, movie_id: int) -> Favorit
     favorite = Favorite(user_id=user_id, movie_id=movie_id)
     db.add(favorite)
     await db.commit()
-    return await get_favorite(db, user_id, movie_id)
+    result = await get_favorite(db, user_id, movie_id)
+    if not result:
+        raise RuntimeError("Favorite was not created")
+    return result
 
 
 async def get_favorite(db: AsyncSession, user_id: int, movie_id: int) -> Favorite | None:

@@ -10,12 +10,20 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str
+    database_sync_url: str
 
     # JWT
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
+
+    # Public URLs
+    frontend_url: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000"
+
+    # Abuse protection
+    auth_rate_limit: str = "5/minute"
 
     # Email
     smtp_host: str
@@ -44,4 +52,4 @@ class Settings(BaseSettings):
     debug: bool = False
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

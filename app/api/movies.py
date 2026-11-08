@@ -39,7 +39,10 @@ async def _delete_entity(model: type[CatalogModel], entity_id: int, db: AsyncSes
     entity = await movie_service.get_named_entity(db, model, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="Catalog entity not found")
-    await movie_service.delete_named_entity(db, entity)
+    try:
+        await movie_service.delete_named_entity(db, entity)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

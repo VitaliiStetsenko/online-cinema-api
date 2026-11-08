@@ -6,17 +6,16 @@ from sqlalchemy import pool
 from alembic import context
 from app.core.config import settings
 from app.db.session import Base
-from app.models.user import UserGroup, User, UserProfile, ActivationToken, PasswordResetToken, RefreshToken
-from app.models.movie import Genre, Star, Director, Certification, Movie
-from app.models.interaction import Favorite, Rating, Comment, CommentLike, MovieReaction, Notification
-from app.models.cart import Cart, CartItem
+
+# Import models so Alembic can discover every table in Base.metadata.
+from app.models import cart, interaction, movie, user  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Set sqlalchemy.url from settings
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("+asyncpg", ""))
+# Alembic uses the explicitly configured synchronous database URL.
+config.set_main_option("sqlalchemy.url", settings.database_sync_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

@@ -1,6 +1,6 @@
 [project]
 name = "online-cinema"
-version = "0.1.0"
+version = "1.0.0"
 description = "Online Cinema Platform"
 authors = [
     {name = "VitaliiStetsenko"}
@@ -23,7 +23,9 @@ dependencies = [
     "pydantic[email] (>=2.14.3,<3.0.0)",
     "greenlet (>=3.5.6,<4.0.0)",
     "bcrypt (<5)",
-    "psycopg[binary] (>=3.3.8,<4.0.0)"
+    "psycopg[binary] (>=3.3.8,<4.0.0)",
+    "slowapi (>=0.1.10,<0.2.0)",
+    "pillow (>=13.0.0,<14.0.0)"
 ]
 
 
@@ -65,17 +67,6 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
-# Models currently use SQLAlchemy's legacy Column(...) declarations. Migrate to
-# SQLAlchemy 2.0 Mapped[...] annotations before enabling these checks.
-disable_error_code = [
-    "arg-type",
-    "assignment",
-    "call-arg",
-    "no-any-return",
-    "return-value",
-    "union-attr",
-    "var-annotated"
-]
 
 [tool.coverage.run]
 source = ["app"]

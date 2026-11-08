@@ -1,9 +1,14 @@
 """Movie models for catalog."""
 
+from __future__ import annotations
+
 import uuid
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, Table, DECIMAL, UniqueConstraint
+from decimal import Decimal
+
+from sqlalchemy import Column, DECIMAL, Float, ForeignKey, Integer, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.session import Base
 
 # Association tables
@@ -34,10 +39,10 @@ class Genre(Base):
 
     __tablename__ = "genres"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    movies = relationship("Movie", secondary=movie_genres, back_populates="genres")
+    movies: Mapped[list["Movie"]] = relationship(secondary=movie_genres, back_populates="genres")
 
 
 class Star(Base):
@@ -45,10 +50,10 @@ class Star(Base):
 
     __tablename__ = "stars"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    movies = relationship("Movie", secondary=movie_stars, back_populates="stars")
+    movies: Mapped[list["Movie"]] = relationship(secondary=movie_stars, back_populates="stars")
 
 
 class Director(Base):
@@ -56,10 +61,10 @@ class Director(Base):
 
     __tablename__ = "directors"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    movies = relationship("Movie", secondary=movie_directors, back_populates="directors")
+    movies: Mapped[list["Movie"]] = relationship(secondary=movie_directors, back_populates="directors")
 
 
 class Certification(Base):
@@ -67,10 +72,10 @@ class Certification(Base):
 
     __tablename__ = "certifications"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    movies = relationship("Movie", back_populates="certification")
+    movies: Mapped[list["Movie"]] = relationship(back_populates="certification")
 
 
 class Movie(Base):
@@ -79,20 +84,22 @@ class Movie(Base):
     __tablename__ = "movies"
     __table_args__ = (UniqueConstraint("name", "year", "time", name="uq_movie_name_year_time"),)
 
-    id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True)
-    name = Column(String(250), nullable=False, index=True)
-    year = Column(Integer, nullable=False)
-    time = Column(Integer, nullable=False)
-    imdb = Column(Float, nullable=False)
-    votes = Column(Integer, nullable=False)
-    meta_score = Column(Float, nullable=True)
-    gross = Column(Float, nullable=True)
-    description = Column(Text, nullable=False)
-    price = Column(DECIMAL(10, 2), nullable=True)
-    certification_id = Column(Integer, ForeignKey("certifications.id"), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    uuid: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(250), nullable=False, index=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    time: Mapped[int] = mapped_column(Integer, nullable=False)
+    imdb: Mapped[float] = mapped_column(Float, nullable=False)
+    votes: Mapped[int] = mapped_column(Integer, nullable=False)
+    meta_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gross: Mapped[float | None] = mapped_column(Float, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    price: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    certification_id: Mapped[int] = mapped_column(Integer, ForeignKey("certifications.id"), nullable=False)
 
-    certification = relationship("Certification", back_populates="movies")
-    genres = relationship("Genre", secondary=movie_genres, back_populates="movies")
-    directors = relationship("Director", secondary=movie_directors, back_populates="movies")
-    stars = relationship("Star", secondary=movie_stars, back_populates="movies")
+    certification: Mapped[Certification] = relationship(back_populates="movies")
+    genres: Mapped[list[Genre]] = relationship(secondary=movie_genres, back_populates="movies")
+    directors: Mapped[list[Director]] = relationship(secondary=movie_directors, back_populates="movies")
+    stars: Mapped[list[Star]] = relationship(secondary=movie_stars, back_populates="movies")

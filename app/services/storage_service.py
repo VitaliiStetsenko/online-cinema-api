@@ -9,7 +9,7 @@ from botocore.client import Config
 from app.core.config import settings
 
 
-def upload_avatar(filename: str, content: bytes, content_type: str) -> str:
+def upload_avatar(content: bytes, content_type: str) -> str:
     """Store an avatar in MinIO and return its object key."""
     client = boto3.client(
         "s3",
@@ -23,6 +23,6 @@ def upload_avatar(filename: str, content: bytes, content_type: str) -> str:
     except Exception:
         client.create_bucket(Bucket=settings.minio_bucket)
 
-    key = f"avatars/{uuid4()}-{filename}"
+    key = f"avatars/{uuid4()}"
     client.put_object(Bucket=settings.minio_bucket, Key=key, Body=BytesIO(content), ContentType=content_type)
     return key

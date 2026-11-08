@@ -1,164 +1,100 @@
 # Online Cinema API
 
-Backend API для онлайн-кинотеатра на FastAPI. Проект реализует учетные записи и роли, каталог фильмов, профиль с аватаром, избранное, оценки, комментарии, реакции, уведомления и корзину.
+Online Cinema is a FastAPI backend for user accounts, movie catalog management, favorites, ratings, comments, notifications, avatars, and shopping carts.
 
-## Содержание
+## Features
 
-- [Возможности](#возможности)
-- [Технологии](#технологии)
-- [Документация API](#документация-api)
-- [Быстрый запуск в Docker](#быстрый-запуск-в-docker)
-- [Локальный запуск](#локальный-запуск)
-- [Авторизация](#авторизация)
-- [API](#api)
-- [Тесты и качество](#тесты-и-качество)
-- [CI](#ci)
+- Email registration, activation, password reset, password change, login, logout, JWT refresh, and refresh-token rotation.
+- Role-based access for `user`, `moderator`, and `admin`.
+- User profiles and validated JPEG, PNG, and WEBP avatar uploads to MinIO.
+- Public movie catalog with pagination, search, filters, sorting, and genre movie counts.
+- Moderator/admin CRUD for movies, genres, directors, stars, and certifications.
+- Favorites, ratings, comments with replies, movie/comment reactions, and in-app notifications.
+- Per-user carts with duplicate protection and total-price calculation.
+- Celery workers for emails and periodic cleanup of expired tokens.
+- Swagger/OpenAPI documentation, Docker Compose, Alembic migrations, strict MyPy, and GitHub Actions CI.
 
-## Возможности
+## Technology Stack
 
-### Учетные записи и доступ
+- Python 3.11+, FastAPI, Pydantic Settings
+- PostgreSQL, SQLAlchemy 2.0 async ORM, Alembic
+- Python-JOSE, bcrypt, Redis, Celery, Flower
+- MinIO and boto3
+- Poetry, Docker, Docker Compose
+- Pytest, pytest-asyncio, pytest-cov, Black, Flake8, MyPy
 
-- Регистрация по уникальному email с проверкой сложности пароля.
-- Активация учетной записи по одноразовому токену, действующему 24 часа.
-- Повторная отправка activation-токена для неактивного пользователя.
-- Вход по email и паролю с выдачей пары JWT: access и refresh.
-- Access token действует ограниченное время, refresh token хранится в базе и используется только для обновления access token.
-- Logout отзывает refresh token, поэтому его нельзя использовать повторно.
-- Смена пароля с проверкой старого пароля и сброс пароля по одноразовому токену.
-- Три роли: `user`, `moderator`, `admin`.
-- Администратор может просматривать пользователей, менять роль и вручную активировать аккаунт.
+## API Documentation
 
-### Профиль и аватар
+Swagger and OpenAPI are public. Protected operations still require an access token, which can be supplied with Swagger's **Authorize** button.
 
-- Создание, просмотр и изменение своего профиля.
-- Поля профиля: имя, фамилия, пол, дата рождения, информация о себе и адрес аватара.
-- Загрузка JPEG, PNG и WEBP-аватаров размером до 5 MB в MinIO.
-
-### Каталог фильмов
-
-- Публичный список и подробная информация о фильмах.
-- Поиск по названию, описанию, актерам и режиссерам.
-- Фильтры по жанру, диапазону годов выпуска и IMDb-рейтингу.
-- Сортировка по названию, году, IMDb, цене или числу голосов.
-- Пагинация списка.
-- CRUD фильмов, жанров, режиссеров, актеров и возрастных сертификатов для moderator/admin.
-- Защита от удаления фильма, который находится в чьей-либо корзине.
-- Список жанров с количеством связанных фильмов.
-
-### Взаимодействие с фильмами
-
-- Избранное с поиском, фильтрацией, сортировкой и пагинацией.
-- Оценки фильмов от 1 до 10 с возможностью изменить свою оценку.
-- Средняя оценка, количество оценок и оценка текущего пользователя.
-- Комментарии, редактирование и удаление собственных комментариев, ответы на комментарии.
-- Лайки и дизлайки комментариев и фильмов.
-- Внутренние уведомления об ответах и реакциях на комментарии.
-
-### Корзина и фоновые задачи
-
-- Одна корзина на пользователя, запрет повторного добавления фильма.
-- Просмотр состава корзины и общей стоимости, удаление позиции и полная очистка.
-- Celery-задачи для писем об активации и сбросе пароля.
-- Celery Beat очищает истекшие activation, password-reset и refresh токены.
-- Redis используется как брокер Celery, Flower предоставляет мониторинг задач.
-
-## Технологии
-
-- Python 3.11+, FastAPI и Pydantic Settings.
-- PostgreSQL, SQLAlchemy Async и Alembic.
-- JWT через Python-JOSE, хеширование паролей через bcrypt.
-- Redis, Celery, Celery Beat и Flower.
-- MinIO для S3-совместимого хранения аватаров.
-- Docker, Docker Compose и Poetry.
-- Pytest, pytest-asyncio, pytest-cov, Black, Flake8, MyPy и GitHub Actions.
-
-## Документация API
-
-Swagger UI и OpenAPI-схема открыты без авторизации. Защищенные методы в Swagger требуют access token через кнопку **Authorize**.
-
-| Режим запуска | Swagger UI | OpenAPI JSON |
+| Run mode | Swagger UI | OpenAPI schema |
 | --- | --- | --- |
 | Docker Compose | `http://localhost:8001/docs` | `http://localhost:8001/openapi.json` |
-| Локальный Uvicorn | `http://localhost:8000/docs` | `http://localhost:8000/openapi.json` |
+| Local Uvicorn | `http://localhost:8000/docs` | `http://localhost:8000/openapi.json` |
 
-Swagger содержит схемы запросов, ответов, обязательные параметры и коды ответов для всех endpoint. Разделы ниже служат краткой картой API и описанием кастомных действий.
+## Quick Start With Docker
 
-## Быстрый запуск в Docker
+### Requirements
 
-### Требования
-
-- Docker Desktop с Docker Compose.
-- Git.
-
-### 1. Клонирование и конфигурация
+- Docker Desktop with Docker Compose
+- Git
 
 ```powershell
-git clone https://github.com/VitaliiStetsenko/Online-Cinema-Portfolio-Project-.git
-cd Online-Cinema-Portfolio-Project-
-git checkout develop
+git clone https://github.com/VitaliiStetsenko/online-cinema-api.git
+cd online-cinema-api
 Copy-Item .env.example .env
 ```
 
-В `.env` обязательно замените `SECRET_KEY`. Для отправки реальных email укажите рабочие SMTP-данные.
-
-Основные настройки:
+Set secure values in `.env`, especially `SECRET_KEY`, SMTP credentials, PostgreSQL credentials, and MinIO credentials.
 
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@db:5432/online_cinema
+DATABASE_SYNC_URL=postgresql+psycopg://user:password@db:5432/online_cinema
 SECRET_KEY=replace-with-a-long-random-secret
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-EMAIL_FROM=your-email@gmail.com
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
+AUTH_RATE_LIMIT=5/minute
 
-REDIS_URL=redis://redis:6379/0
-CELERY_BROKER_URL=redis://redis:6379/1
-CELERY_RESULT_BACKEND=redis://redis:6379/2
-
-MINIO_ENDPOINT=minio:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=avatars
-MINIO_SECURE=false
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DB=online_cinema
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
 ```
 
-### 2. Запуск и миграции
+Start the stack and apply migrations:
 
 ```powershell
 docker compose up --build -d
 docker compose exec app alembic upgrade head
 ```
 
-### Сервисы
-
-| Сервис | Адрес |
+| Service | Address |
 | --- | --- |
-| API и Swagger | `http://localhost:8001/docs` |
-| Flower | `http://localhost:5555` |
+| API and Swagger | `http://localhost:8001/docs` |
 | MinIO API | `http://localhost:9010` |
 | MinIO Console | `http://localhost:9011` |
-| PostgreSQL | `localhost:5432` |
-| Redis | `localhost:6379` |
 
-Остановить сервисы:
+PostgreSQL, Redis, and Flower are intentionally not exposed to the host by default. Use a Docker Compose override only when local debugging requires published ports.
+
+Stop services:
 
 ```powershell
 docker compose down
 ```
 
-Удалить также тома PostgreSQL и MinIO:
+Remove service data too:
 
 ```powershell
 docker compose down -v
 ```
 
-## Локальный запуск
+## Local Development
 
-Этот режим запускает FastAPI на компьютере, а PostgreSQL, Redis и MinIO оставляет в Docker.
+Install dependencies and start the infrastructure services:
 
 ```powershell
 poetry install
@@ -166,26 +102,25 @@ docker compose up -d db redis minio
 Copy-Item .env.example .env
 ```
 
-Для локального `.env` замените имена Docker-сервисов:
+For a locally running API, configure the host-facing service ports in `.env`:
 
 ```env
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/online_cinema
+DATABASE_SYNC_URL=postgresql+psycopg://user:password@localhost:5432/online_cinema
 REDIS_URL=redis://localhost:6379/0
 CELERY_BROKER_URL=redis://localhost:6379/1
 CELERY_RESULT_BACKEND=redis://localhost:6379/2
 MINIO_ENDPOINT=localhost:9010
 ```
 
-Примените миграции и запустите API:
+If you need PostgreSQL or Redis from the host, publish their ports through a local Compose override. Then run:
 
 ```powershell
 poetry run alembic upgrade head
 poetry run uvicorn app.main:app --reload
 ```
 
-Локальный Swagger: `http://localhost:8000/docs`.
-
-При необходимости отдельно запустите Celery:
+Start Celery services when testing emails or scheduled cleanup:
 
 ```powershell
 poetry run celery -A app.tasks.celery_app worker --loglevel=info
@@ -193,171 +128,122 @@ poetry run celery -A app.tasks.celery_app beat --loglevel=info
 poetry run celery -A app.tasks.celery_app flower --port=5555
 ```
 
-## Авторизация
+## Authentication
 
-Большинство действий пользователя требуют заголовок:
+Protected endpoints require:
 
 ```http
 Authorization: Bearer <ACCESS_TOKEN>
 ```
 
-Получите токены через `POST /api/auth/login`. В Swagger нажмите **Authorize**, вставьте только значение access token и подтвердите. Refresh token предназначен исключительно для `POST /api/auth/refresh` и не дает доступа к защищенным endpoint.
+`POST /api/auth/login` returns access and refresh tokens. Refresh tokens are accepted only by `POST /api/auth/refresh`; each successful refresh rotates the stored token.
 
-Пароль должен быть длиной от 8 до 100 символов и содержать строчную и заглавную буквы, цифру и специальный символ.
+Passwords must be 8 to 100 characters long and include lowercase, uppercase, numeric, and special characters.
 
-## API
+Authentication endpoints are rate-limited according to `AUTH_RATE_LIMIT`.
 
-Все перечисленные пути начинаются с `/api`, если не указано иное. Полные схемы JSON находятся в Swagger.
+## API Overview
 
-### Служебные маршруты
+All routes below are prefixed with `/api` unless otherwise noted. Swagger provides complete request and response schemas.
 
-| Метод | Путь | Доступ | Действие |
+### Authentication: `/auth`
+
+| Method | Route | Description |
+| --- | --- | --- |
+| POST | `/register` | Register a user and queue an activation email. |
+| POST | `/activate/{token}` | Activate an account using an activation token. |
+| POST | `/resend-activation` | Send a new activation token for an inactive account. |
+| POST | `/login` | Return an access/refresh JWT pair. |
+| POST | `/refresh` | Rotate a refresh token and return a new token pair. |
+| POST | `/logout` | Revoke a refresh token. |
+| POST | `/change-password` | Change the active user's password. |
+| POST | `/request-password-reset` | Queue a password reset email for an active account. |
+| POST | `/reset-password` | Set a new password using a reset token. |
+
+Email links target configurable frontend pages: `FRONTEND_URL/activate?token=...` and `FRONTEND_URL/reset-password?token=...`. The frontend must call the matching API endpoint to finish activation or password reset.
+
+### Users: `/users`
+
+| Method | Route | Access | Description |
 | --- | --- | --- | --- |
-| GET | `/` | public | Health check: возвращает статус API. |
-| GET | `/docs` | public | Swagger UI. |
-| GET | `/openapi.json` | public | OpenAPI-схема. |
+| GET | `/me` | Active user | Get account and profile data. |
+| POST | `/me/profile` | Active user | Create a profile. |
+| PUT | `/me/profile` | Active user | Update or create a profile. |
+| POST | `/me/avatar` | Active user | Upload an `avatar` multipart field, up to 5 MB. |
+| GET | `` | Admin | List accounts. |
+| PATCH | `/{user_id}` | Admin | Change a role or activation state. |
 
-### Аутентификация: `/auth`
+### Movies: `/movies`
 
-| Метод | Путь | Параметры/тело | Действие |
+| Method | Route | Access | Description |
 | --- | --- | --- | --- |
-| POST | `/register` | `email`, `password` | Создает неактивного пользователя и ставит отправку activation-токена в очередь. |
-| POST | `/activate/{token}` | path `token` | Активирует аккаунт по действующему токену. |
-| POST | `/resend-activation` | `email` | Выпускает новый activation-токен для неактивного пользователя. |
-| POST | `/login` | `email`, `password` | Возвращает `access_token`, `refresh_token`, `token_type`. |
-| POST | `/refresh` | `refresh_token` | Создает новый access token. |
-| POST | `/logout` | `refresh_token` | Удаляет refresh token из базы. |
-| POST | `/change-password` | `old_password`, `new_password` | Меняет пароль текущего пользователя. Требует access token. |
-| POST | `/request-password-reset` | `email` | Создает и отправляет reset-токен для активного пользователя. |
-| POST | `/reset-password` | `token`, `new_password` | Устанавливает новый пароль по действующему reset-токену. |
+| GET | `` | Public | Browse movies. |
+| GET | `/{movie_id}` | Public | Get movie details. |
+| POST | `` | Moderator/admin | Create a movie. |
+| PUT | `/{movie_id}` | Moderator/admin | Update a movie. |
+| DELETE | `/{movie_id}` | Moderator/admin | Delete a movie not present in a cart. |
 
-Пример регистрации для Docker:
+Catalog query parameters: `page`, `page_size`, `query`, `genre_id`, `year_from`, `year_to`, `imdb_from`, `imdb_to`, `sort_by`, and `sort_order`. Valid `sort_by` values are `name`, `year`, `imdb`, `price`, and `votes`.
+
+### Catalog Management: `/catalog`
+
+Public `GET` routes are available for `/genres`, `/directors`, `/stars`, `/certifications`, and `/genres/with-counts`.
+
+Moderators and admins can use `POST`, `PUT /{entity_id}`, and `DELETE /{entity_id}` for genres, directors, stars, and certifications. Deleting an entity still used by movies returns `409 Conflict`.
+
+### Favorites: `/favorites`
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `` | List current user's favorites with catalog filters. |
+| POST | `/{movie_id}` | Add a movie to favorites. |
+| DELETE | `/{movie_id}` | Remove a movie from favorites. |
+
+### Ratings, Comments, and Notifications
+
+| Method | Route | Description |
+| --- | --- | --- |
+| PUT | `/movies/{movie_id}/rating` | Set a score from 1 to 10. |
+| GET | `/movies/{movie_id}/rating` | Get the average rating and current user's score. |
+| POST/GET | `/movies/{movie_id}/comments` | Create or list comments. |
+| PUT/DELETE | `/comments/{comment_id}` | Update or delete an owned comment. |
+| PUT | `/comments/{comment_id}/reaction?is_like=true` | Set a comment reaction. |
+| PUT | `/movies/{movie_id}/reaction?is_like=true` | Set a movie reaction. |
+| GET | `/notifications` | List in-app notifications. |
+| PATCH | `/notifications/{notification_id}/read` | Mark a notification as read. |
+
+### Cart: `/cart`
+
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `` | Get or create the current user's cart. |
+| POST | `/{movie_id}` | Add a movie. |
+| DELETE | `/{movie_id}` | Remove a movie. |
+| DELETE | `` | Clear the cart. |
+
+## Testing and Quality
 
 ```powershell
-curl.exe -X POST "http://localhost:8001/api/auth/register" `
-  -H "Content-Type: application/json" `
-  -d "{\"email\": \"user@example.com\", \"password\": \"SecurePass123!\"}"
-```
-
-### Пользователи: `/users`
-
-| Метод | Путь | Доступ | Действие |
-| --- | --- | --- | --- |
-| GET | `/me` | active user | Возвращает аккаунт и профиль текущего пользователя. |
-| POST | `/me/profile` | active user | Создает профиль. Тело: `first_name`, `last_name`, `gender`, `date_of_birth`, `info`. |
-| PUT | `/me/profile` | active user | Обновляет профиль; создает его автоматически, если профиля нет. |
-| POST | `/me/avatar` | active user | Загружает multipart-поле `avatar` в JPEG, PNG или WEBP до 5 MB. |
-| GET | `` | admin | Возвращает список учетных записей. |
-| PATCH | `/{user_id}` | admin | Меняет `group` (`user`, `moderator`, `admin`) и/или `is_active`. |
-
-### Фильмы: `/movies`
-
-| Метод | Путь | Доступ | Действие |
-| --- | --- | --- | --- |
-| GET | `` | public | Возвращает постраничный каталог. |
-| GET | `/{movie_id}` | public | Возвращает подробную карточку фильма. |
-| POST | `` | moderator/admin | Создает фильм. |
-| PUT | `/{movie_id}` | moderator/admin | Обновляет поля фильма и его связи. |
-| DELETE | `/{movie_id}` | moderator/admin | Удаляет фильм, если его нет в корзинах. |
-
-Параметры `GET /movies`:
-
-| Параметр | Значение | Назначение |
-| --- | --- | --- |
-| `page`, `page_size` | `1`, `1..100` | Страница и число результатов. |
-| `query` | строка | Поиск по названию, описанию, актеру и режиссеру. |
-| `genre_id` | integer | Фильтр по жанру. |
-| `year_from`, `year_to` | `1888..2100` | Диапазон года выпуска. |
-| `imdb_from`, `imdb_to` | `0..10` | Диапазон IMDb. |
-| `sort_by` | `name`, `year`, `imdb`, `price`, `votes` | Поле сортировки. |
-| `sort_order` | `asc`, `desc` | Направление сортировки. |
-
-Тело создания фильма содержит `name`, `year`, `time`, `imdb`, `votes`, `description`, `price`, `certification_id` и необязательные массивы `genre_ids`, `director_ids`, `star_ids`. Дополнительно доступны `meta_score` и `gross`.
-
-### Управление справочниками: `/catalog`
-
-| Ресурс | Public | Moderator/admin |
-| --- | --- | --- |
-| `/genres` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
-| `/directors` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
-| `/stars` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
-| `/certifications` | `GET` | `POST`, `PUT /{entity_id}`, `DELETE /{entity_id}` |
-| `/genres/with-counts` | `GET` | - |
-
-Создание использует тело `{ "name": "..." }`. Обновление принимает такое же тело. Endpoint `GET /genres/with-counts` возвращает для каждого жанра `id`, `name` и `movie_count`.
-
-### Избранное: `/favorites`
-
-| Метод | Путь | Действие |
-| --- | --- | --- |
-| GET | `` | Возвращает постраничный список избранных фильмов текущего пользователя. |
-| POST | `/{movie_id}` | Добавляет фильм в избранное. Повторное добавление отклоняется. |
-| DELETE | `/{movie_id}` | Удаляет фильм из избранного. |
-
-`GET /favorites` поддерживает параметры каталога: `page`, `page_size`, `query`, `genre_id`, `year_from`, `year_to`, `imdb_from`, `imdb_to`, `sort_by`, `sort_order`. Для `sort_by` также доступно `added_at`.
-
-### Оценки, комментарии и уведомления
-
-| Метод | Путь | Действие |
-| --- | --- | --- |
-| PUT | `/movies/{movie_id}/rating` | Создает или изменяет свою оценку. Тело: `{ "score": 1..10 }`. |
-| GET | `/movies/{movie_id}/rating` | Возвращает средний балл, количество оценок и оценку текущего пользователя. |
-| POST | `/movies/{movie_id}/comments` | Создает комментарий. Тело: `text`, необязательный `parent_comment_id`. |
-| GET | `/movies/{movie_id}/comments` | Возвращает комментарии фильма с количеством реакций. |
-| PUT | `/comments/{comment_id}` | Изменяет собственный комментарий. Тело: `text`. |
-| DELETE | `/comments/{comment_id}` | Удаляет собственный комментарий. |
-| PUT | `/comments/{comment_id}/reaction?is_like=true` | Ставит или изменяет лайк/дизлайк комментария. |
-| PUT | `/movies/{movie_id}/reaction?is_like=true` | Ставит или изменяет лайк/дизлайк фильма. |
-| GET | `/notifications` | Возвращает уведомления текущего пользователя. |
-| PATCH | `/notifications/{notification_id}/read` | Помечает уведомление прочитанным. |
-
-Все методы этого раздела требуют активного пользователя.
-
-### Корзина: `/cart`
-
-| Метод | Путь | Действие |
-| --- | --- | --- |
-| GET | `` | Возвращает текущую корзину, позиции и `total_price`; при первом вызове создает пустую корзину. |
-| POST | `/{movie_id}` | Добавляет фильм в корзину. Повторное добавление отклоняется. |
-| DELETE | `/{movie_id}` | Удаляет указанную позицию. |
-| DELETE | `` | Очищает корзину. |
-
-Все методы корзины требуют активного пользователя.
-
-## Тесты и качество
-
-Тесты используют отдельную SQLite in-memory базу. Для запуска не нужны Docker, PostgreSQL, Redis, SMTP или MinIO: внешние вызовы изолируются в тестах.
-
-```powershell
-# Все тесты
 poetry run pytest tests/
-
-# Покрытие кода
 poetry run pytest tests/ --cov=app --cov-report=term-missing
-
-# HTML-отчет покрытия
-poetry run pytest tests/ --cov=app --cov-report=html
-
-# Форматирование, линтер и типы
-poetry run black --check app tests
-poetry run flake8 app tests --max-line-length=120 --exclude=__pycache__
+poetry run black --check app tests alembic
+poetry run flake8 app tests alembic --max-line-length=120 --exclude=__pycache__
 poetry run mypy app --ignore-missing-imports
 ```
 
-Последняя локальная проверка: **22 passed**, общее line coverage **87%**.
+Latest local result: **24 passed**, **88% coverage**.
 
 ## CI
 
-GitHub Actions запускается для `push` и pull request в ветки `develop` и `main`. Pipeline устанавливает зависимости через Poetry, выполняет Black, Flake8, MyPy, Pytest с coverage и публикует `coverage.xml` в Codecov. Конфигурация: `.github/workflows/ci.yml`.
+GitHub Actions runs quality checks for pushes and pull requests to `develop`, `main`, and `fix`. It runs Black, Flake8, strict MyPy, and the SQLite test suite with coverage. A separate job starts PostgreSQL 15 and verifies the full Alembic migration chain.
 
-## Важные замечания
+## Security Notes
 
-- Перед реальным использованием смените значения `SECRET_KEY`, SMTP-пароль и MinIO credentials из `.env.example`.
-- Docker Compose настроен для разработки: исходный код монтируется в контейнер, а Uvicorn работает с `--reload`.
-- После первого Docker-запуска примените миграции командой `docker compose exec app alembic upgrade head`.
-- Письма отправляются Celery worker через SMTP. Активацию и сброс пароля завершайте вызовами API из Swagger или клиентского приложения, передавая токен в `POST /api/auth/activate/{token}` или `POST /api/auth/reset-password`.
-- Swagger и OpenAPI публичны; доступ к пользовательским, модераторским и административным действиям ограничивается JWT и ролями.
+- Replace all sample credentials before deployment.
+- Configure `CORS_ORIGINS` with only trusted frontend origins.
+- Keep Swagger public only for development or trusted deployments.
+- The Docker image installs runtime dependencies only; development dependencies are used locally and in CI.
 
-## Автор
+## Author
 
 Vitalii Stetsenko
